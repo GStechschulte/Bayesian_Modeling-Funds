@@ -13,4 +13,5 @@
             - After observing the new evidence, our belief is updated; which is called the posterior probability
             - __“Today's posterior is tomorrow's prior”__
     - In Bayesian Inference, we have access to the parameters posterior distribution which will allow us to interpret point and interval estimates
+        - By incorporating forward looking priors complemented with having access to the posterior distribution, we can assess the probability of achieving a certain % mean monthly return and mean monthly volatility 
 

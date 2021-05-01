@@ -10,7 +10,7 @@ data <- NULL
 data <- cbind(data,
               getSymbols.yahoo("AAPL", 
                                from = "2017-01-01", 
-                               to = '2020-'
+                               to = '2020-08-01',
                                periodicity = "monthly",
                                auto.assign=FALSE)[,6])
 
@@ -83,6 +83,14 @@ ggplot(returnChains, aes(x = mu)) +
   geom_vline(xintercept = mean(returnChains$mu), 
              color = 'red')
 
+# Average return - Uninformative prior has "learned" the appropriate parameters
+ggplot(returnChains, aes(x = mu)) + 
+  geom_density() +
+  geom_vline(aes(xintercept = mean(returns), 
+             color = 'red')) +
+  geom_vline(aes(xintercept = mean(mu),
+             color = 'blue'))
+
 # --------------------------------
 
 ## Diagnostics ##
@@ -110,6 +118,10 @@ summary(returnSim)
 
 # --------------------------------
 
+
+
+# --------------------------------
+
 ## Visualizing Plotting ##
 
 # Prior distribution, likelihood distribution (observed data), and posterior distribution - same graph
@@ -122,8 +134,6 @@ returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
 posterior <- returnChains$mu
 length(posterior)
 
-
-ggplot()  
 
 
 

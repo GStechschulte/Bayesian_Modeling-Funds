@@ -3,7 +3,7 @@ library(tidyverse)
 library(quantmod)
 library(tidyquant)
 library(quantmod)
-
+library(bayesplot)
 
 ## Getting the data ##
 data <- NULL
@@ -43,35 +43,40 @@ uninform_model <- "model{
     # Prior(s) - expert intuition / knowledge
     mu ~ dnorm(0.0, 0.001)
     tau ~ dgamma(0.001, 0.001)
+    sigma <- 1/sqrt(tau)
 }"
 
 # --------------------------------
 
-## Compiling Model ##
+## Model Specification - 4 chains ##
 uninform_jags <- jags.model(
   textConnection(uninform_model),
   data = list(Y = returns),
-  inits = list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 1989)
+  inits = list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 1989),
+  n.chains = 4
 )
-# inits argument is for reproducability
-
- ## Simulating 10,000 samples from the posterior of the model using MCMC ##
-returnSim <- coda.samples(model = uninform_jags,
-                          variable.names = c("mu", "tau"),
-                          n.iter = 1000)
-
-## Plotting posterior of parameters ##
-plot(returnSim, trace = FALSE)
-
-# --------------------------------
 
 ## Markov Chains ##
-head(returnSim, 20)
 # these are results from the markov chain, NOT a random sample from the posterior
 # rjags uses markov chains to approximate posteriors 
 # markov chain is dependent on the previous values and time steps
 # examine the trace plot of all 10,000 which can also be visualized as a distribution
 # this provides a approximation of the parameters
+
+## Using CODA for MCMC sampling - 1000 iterations ##
+returnSim <- coda.samples(model = uninform_jags,
+                          variable.names = c("mu", "tau", "sigma"),
+                          n.iter = 1000)
+
+## Plotting ##
+plot(returnSim)
+
+## Summary Statistics ##
+summary(returnSim)
+
+returnSim
+
+# --------------------------------
 
 returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
 
@@ -91,6 +96,12 @@ ggplot(returnChains, aes(x = mu)) +
   geom_vline(aes(xintercept = mean(mu),
              color = 'blue'))
 
+return_mcmc <- as.mcmc(uninform_jags)
+
+#mcmc_areas(return_mcmc,
+#           pars = c('mu'),
+#           prob = 0.68)
+
 # --------------------------------
 
 ## Diagnostics ##
@@ -99,26 +110,6 @@ ggplot(returnChains, aes(x = mu)) +
 # summary stats - provide estimates of the posterior params estimates
 # naive standard errors - provides an estimate of the potential erorr / measure of uncertainty in the estimate
 # we can use this to determine the approp. chain length - I.e, estimate mu within a SE of 0.1
-
-## Multiple Chains ##
-uninform_jags <- jags.model(
-  textConnection(uninform_model),
-  data = list(Y = returns),
-  inits = list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 1989),
-  n.chains = 4
-)
-
-returnSim <- coda.samples(model = uninform_jags,
-                          variable.names = c("mu", "tau"),
-                          n.iter = 1000)
-
-plot(returnSim)
-
-summary(returnSim)
-
-# --------------------------------
-
-
 
 # --------------------------------
 
@@ -131,11 +122,25 @@ prior <- rnorm(n=10000, mean=0.0, sd=0.001)
 length(prior)
 
 returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
-posterior <- returnChains$mu
-length(posterior)
+posterior.mu <- returnChains$mu
+length(posterior.mu)
+
+dists <- data.frame(prior = rnorm(n=1000, mean=0.0, sd=0.001), 
+                    post = returnChains$mu)
+
+names(dists)
+
+dists %>% ggplot(aes(x = prior, fill = post)) +
+                   geom_density(alpha=0.3)
 
 
+## Probabilities ##
 
+# Pr(mu > 0.5%)
+1 - pnorm(q = 0.005, mean=mean(posterior.mu), sd=mean(returnChains$sigma))
+
+# Pr(std < 2%)
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu))
 
 
 

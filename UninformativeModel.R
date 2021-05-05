@@ -8,20 +8,20 @@ library(bayesplot)
 ## Getting the data ##
 data <- NULL
 data <- cbind(data,
-              getSymbols.yahoo("AAPL", 
+              getSymbols.yahoo("SPY", 
                                from = "2017-01-01", 
-                               to = '2020-08-01',
+                               to = "2020-02-01",
                                periodicity = "monthly",
                                auto.assign=FALSE)[,6])
 
 head(data)
 class(data)
 
-aapl.returns <- na.omit(diff(log(data)))
-plot(aapl.returns)
-aapl.returns
+spy.returns <- na.omit(diff(log(data)))
+plot(spy.returns)
+spy.returns
 
-returns <- as.vector(aapl.returns$AAPL.Adjusted)
+returns <- as.vector(spy.returns$SPY.Adjusted)
 class(returns)
 length(returns)
 returns
@@ -78,10 +78,13 @@ returnSim
 
 # --------------------------------
 
-returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
+returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
 
 ggplot(returnChains, aes(x = iter, y = mu)) + 
   geom_line()
+
+acf(returnChains$mu)
+pacf(returnChains$mu)
 
 ggplot(returnChains, aes(x = mu)) + 
   geom_density() +
@@ -121,26 +124,21 @@ return_mcmc <- as.mcmc(uninform_jags)
 prior <- rnorm(n=10000, mean=0.0, sd=0.001)
 length(prior)
 
-returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
+returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
 posterior.mu <- returnChains$mu
 length(posterior.mu)
 
 dists <- data.frame(prior = rnorm(n=1000, mean=0.0, sd=0.001), 
                     post = returnChains$mu)
 
-names(dists)
-
-dists %>% ggplot(aes(x = prior, fill = post)) +
-                   geom_density(alpha=0.3)
-
 
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
-1 - pnorm(q = 0.005, mean=mean(posterior.mu), sd=mean(returnChains$sigma))
+pnorm(q = 0.005, mean=mean(posterior.mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
 
-# Pr(std < 2%)
-pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu))
+# Pr(std > 2%)
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = FALSE)
 
 
 

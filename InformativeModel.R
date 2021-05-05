@@ -6,22 +6,24 @@ library(quantmod)
 
 
 ## Getting the data ##
-data.before <- NULL
-data.before <- cbind(data.before,
-              getSymbols.yahoo("AAPL", 
-                               from = "2018-01-01", 
-                               to = '2020-02-01',
+data <- NULL
+data <- cbind(data,
+              getSymbols.yahoo("SPY", 
+                               from = "2019-01-01", 
+                               to = '2020-04-01',
                                periodicity = "monthly",
                                auto.assign=FALSE)[,6])
 
-head(data.before)
-class(data.before)
+head(data)
+class(data)
 
-aapl.returns <- na.omit(diff(log(data.before)))
-plot(aapl.returns)
-aapl.returns
+plot(data)
 
-returns <- as.vector(aapl.returns$AAPL.Adjusted)
+spy.returns <- na.omit(diff(log(data)))
+plot(spy.returns)
+spy.returns
+
+returns <- as.vector(spy.returns$SPY.Adjusted)
 class(returns)
 length(returns)
 returns
@@ -31,30 +33,6 @@ StdDev(returns)
 var(returns)
 
 # -------------------------
-
-data.after <- NULL
-data.after <- cbind(data.after,
-                     getSymbols.yahoo("AAPL", 
-                                      from = "2018-01-01", 
-                                      to = '2020-04-30',
-                                      periodicity = "monthly",
-                                      auto.assign=FALSE)[,6])
-head(data.after)
-class(data.after)
-
-aapl.returns.after <- na.omit(diff(log(data.before)))
-plot(aapl.returns.after)
-aapl.returns
-
-returns.after <- as.vector(aapl.returns.after$AAPL.Adjusted)
-class(returns.after)
-length(returns.after)
-returns.after
-
-mean(returns.after)
-StdDev(returns.after)
-var(returns.after)
-
 
 # -------------------------
 
@@ -93,23 +71,24 @@ inform_jags <- jags.model(
 ## Simulating 10,000 samples from the posterior of the model using MCMC ##
 returnSim <- coda.samples(model = inform_jags,
                           variable.names = c("mu", "tau", "sigma"),
-                          n.iter = 10000)
+                          n.iter = 1000)
 
+# Summary output
 summary(returnSim)
 
 ## Plotting posterior of parameters ##
 plot(returnSim, trace = FALSE)
 
-returnChains <- data.frame(returnSim[[1]], iter = 1: 10000)
+returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
 
 ggplot(returnChains, aes(x = iter, y = mu)) + 
   geom_line()
 
 
 # Observed Data - Likelihood
-ggplot(data = aapl.returns, aes(x = AAPL.Adjusted)) +
+ggplot(data = spy.returns, aes(x = SPY.Adjusted)) +
   geom_density() +
-  geom_vline(xintercept = mean(aapl.returns$AAPL.Adjusted),
+  geom_vline(xintercept = mean(spy.returns$SPY.Adjusted),
              color = 'blue') +
   ggtitle('Observational Distribution of mu')
 
@@ -120,11 +99,13 @@ ggplot(data = returnChains, aes(x = mu)) +
              color = 'red') +
   ggtitle('Posterior Distribution of mu')
 
+mean(returnChains$mu)*100
+mean(returns)*100
 
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
-1 - pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma))
+pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
 
-# Pr(std < 2%)
-pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu))
+# Pr(std > 2%)
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = FALSE)

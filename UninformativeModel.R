@@ -57,11 +57,11 @@ uninform_jags <- jags.model(
 )
 
 ## Markov Chains ##
-# these are results from the markov chain, NOT a random sample from the posterior
+##---------------##
+# These are results from the markov chain, NOT a random sample from the posterior
 # rjags uses markov chains to approximate posteriors 
-# markov chain is dependent on the previous values and time steps
-# examine the trace plot of all 10,000 which can also be visualized as a distribution
-# this provides a approximation of the parameters
+# Markov chains are dependent on the previous values and time steps
+# The trace plot provides an approximation of the parameters
 
 ## Using CODA for MCMC sampling - 1000 iterations ##
 returnSim <- coda.samples(model = uninform_jags,
@@ -74,24 +74,27 @@ plot(returnSim)
 ## Summary Statistics ##
 summary(returnSim)
 
-returnSim
 
 # --------------------------------
 
 returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
 
+# Trace plot
 ggplot(returnChains, aes(x = iter, y = mu)) + 
   geom_line()
 
+# Correlation functions
 acf(returnChains$mu)
 pacf(returnChains$mu)
 
+# Average posterior mean monthly return
 ggplot(returnChains, aes(x = mu)) + 
   geom_density() +
   geom_vline(xintercept = mean(returnChains$mu), 
              color = 'red')
 
-# Average return - Uninformative prior has "learned" the appropriate parameters
+# Average return - Uninformative prior has "learned" the parameters
+# Posterior mean mu is approx. equal to observational mean mu
 ggplot(returnChains, aes(x = mu)) + 
   geom_density() +
   geom_vline(aes(xintercept = mean(returns), 
@@ -99,11 +102,8 @@ ggplot(returnChains, aes(x = mu)) +
   geom_vline(aes(xintercept = mean(mu),
              color = 'blue'))
 
-return_mcmc <- as.mcmc(uninform_jags)
 
-#mcmc_areas(return_mcmc,
-#           pars = c('mu'),
-#           prob = 0.68)
+return_mcmc <- as.mcmc(uninform_jags)
 
 # --------------------------------
 
@@ -135,15 +135,14 @@ dists <- data.frame(prior = rnorm(n=1000, mean=0.0, sd=0.001),
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
-pnorm(q = 0.005, mean=mean(posterior.mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
+pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
 
 # Pr(std > 2%)
 pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = FALSE)
 
 
-
-
-
+mean(returns)
+sd(returns)
 
 
 

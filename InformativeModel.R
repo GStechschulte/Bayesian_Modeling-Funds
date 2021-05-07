@@ -81,9 +81,12 @@ plot(returnSim, trace = FALSE)
 
 returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
 
+# Correlation functions
+acf(returnChains$mu)
+pacf(returnChains$mu)
+
 ggplot(returnChains, aes(x = iter, y = mu)) + 
   geom_line()
-
 
 # Observed Data - Likelihood
 ggplot(data = spy.returns, aes(x = SPY.Adjusted)) +
@@ -100,12 +103,13 @@ ggplot(data = returnChains, aes(x = mu)) +
   ggtitle('Posterior Distribution of mu')
 
 mean(returnChains$mu)*100
-mean(returns)*100
 
+mean(returns)*100
+sd(returns)
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
 pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
 
 # Pr(std > 2%)
-pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = FALSE)
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = TRUE)

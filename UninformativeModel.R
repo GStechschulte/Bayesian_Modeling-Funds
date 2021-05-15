@@ -14,21 +14,43 @@ data <- cbind(data,
                                periodicity = "monthly",
                                auto.assign=FALSE)[,6])
 
-head(data)
-class(data)
-
+# Continuous returns
 spy.returns <- na.omit(diff(log(data)))
 plot(spy.returns)
-spy.returns
 
+# Chaning data type to vector for the JAGS model
 returns <- as.vector(spy.returns$SPY.Adjusted)
 class(returns)
 length(returns)
-returns
 
+# Investigating basic desc. statistics
 mean(returns)
 StdDev(returns)
 var(returns)
+
+# --------------------------------
+
+## Simulating prior distributions ##
+sim <- 1000
+
+mu_sim_prior <- rnorm(sim, 0.0, sd = 0.001)
+
+# Tau - variance is non-negative, continuous, and with no upper limit, 
+#       a gamma distribution appears to be a candidate prior for the variance
+tau_sim_prior <- rgamma(sim, 0.001, 0.001)
+
+sigma_sim_prior <- 1 / sqrt(tau_sim_prior)
+
+sim_priors <- data.frame(mu_sim_prior, tau_sim_prior, sigma_sim_prior)
+
+ggplot(sim_priors, aes(mu_sim_prior, tau_sim_prior)) +
+  geom_point(color = 'skyblue', alpha = 0.4) +
+  geom_density_2d(color = 'orange', size = 1) +
+  ggtitle('Prior Distributions')
+
+ggplot(sim_priors, aes(x = sigma_sim_prior)) +
+  geom_histogram(aes(y =..density..), color = 'black', fill = 'white') +
+  geom_density(size = 1, color = 'orange')
 
 # --------------------------------
 
@@ -48,101 +70,73 @@ uninform_model <- "model{
 
 # --------------------------------
 
-## Model Specification - 4 chains ##
-uninform_jags <- jags.model(
-  textConnection(uninform_model),
+## Compiling Model ##
+inform_jags <- jags.model(
+  textConnection(inform_model),
   data = list(Y = returns),
-  inits = list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 1989),
-  n.chains = 4
-)
+  inits = list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 1989), # inits argument is for reproducability
+  n.chains = 4)
 
-## Markov Chains ##
-##---------------##
-# These are results from the markov chain, NOT a random sample from the posterior
-# rjags uses markov chains to approximate posteriors 
-# Markov chains are dependent on the previous values and time steps
-# The trace plot provides an approximation of the parameters
+# -------------------------------
 
-## Using CODA for MCMC sampling - 1000 iterations ##
-returnSim <- coda.samples(model = uninform_jags,
+## update performs a burn in period to "warm up" the simulation ##
+update(inform_jags, n.iter = 100, progress.bar = 'none')
+
+## Simulating 1,000 samples from the posterior of the model using MCMC ##
+returnSim <- coda.samples(model = inform_jags,
                           variable.names = c("mu", "tau", "sigma"),
                           n.iter = 1000)
 
-## Plotting ##
-plot(returnSim)
-
-## Summary Statistics ##
-summary(returnSim)
-
-
 # --------------------------------
 
+## Summary Statistics  and Visualizations ##
+summary(returnSim)
+
+# Plotting posterior of parameters 
+plot(returnSim)
+
+# Putting posterior parameters into a dataframe
 returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
+returnChains
 
-# Trace plot
-ggplot(returnChains, aes(x = iter, y = mu)) + 
-  geom_line()
-
-# Correlation functions
+## Correlation functions ##
 acf(returnChains$mu)
 pacf(returnChains$mu)
 
-# Average posterior mean monthly return
-ggplot(returnChains, aes(x = mu)) + 
+## Observed Data - Likelihood ##
+ggplot(data = spy.returns, aes(x = SPY.Adjusted)) +
   geom_density() +
-  geom_vline(xintercept = mean(returnChains$mu), 
-             color = 'red')
+  geom_vline(xintercept = mean(spy.returns$SPY.Adjusted),
+             color = 'blue') +
+  ggtitle('Observational Distribution of mu')
 
-# Average return - Uninformative prior has "learned" the parameters
-# Posterior mean mu is approx. equal to observational mean mu
-ggplot(returnChains, aes(x = mu)) + 
+## Posterior Data - Mu ##
+ggplot(data = returnChains, aes(x = mu)) +
   geom_density() +
-  geom_vline(aes(xintercept = mean(returns), 
-             color = 'red')) +
-  geom_vline(aes(xintercept = mean(mu),
-             color = 'blue'))
+  geom_vline(xintercept = mean(returnChains$mu),
+             color = 'red') +
+  ggtitle('Posterior Distribution of mu')
 
+y_sim <- rnorm(nrow(returnChains), returnChains$mu, returnChains$sigma)
+hist(y_sim, freq=FALSE, xlab = 'Mean Monthly Returns', main = 'Posterior Predictive Distribution')
+lines(density(y_sim))
+abline(v = quantile(y_sim, c(0.025, 0.975)), col = 'orange')
 
-return_mcmc <- as.mcmc(uninform_jags)
 
 # --------------------------------
-
-## Diagnostics ##
-# using chains can illustrate a range of different paths the chain can take
-# you want paths to all represent stability
-# summary stats - provide estimates of the posterior params estimates
-# naive standard errors - provides an estimate of the potential erorr / measure of uncertainty in the estimate
-# we can use this to determine the approp. chain length - I.e, estimate mu within a SE of 0.1
-
-# --------------------------------
-
-## Visualizing Plotting ##
-
-# Prior distribution, likelihood distribution (observed data), and posterior distribution - same graph
-
-# Returns
-prior <- rnorm(n=10000, mean=0.0, sd=0.001)
-length(prior)
-
-returnChains <- data.frame(returnSim[[1]], iter = 1: 1000)
-posterior.mu <- returnChains$mu
-length(posterior.mu)
-
-dists <- data.frame(prior = rnorm(n=1000, mean=0.0, sd=0.001), 
-                    post = returnChains$mu)
-
 
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
-pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
+pnorm(q = 0.005, mean=mean(returnChains$mu), sd=sd(returnChains$mu), lower.tail = FALSE)
+
+# Pr(mu < 0.0%)
+pnorm(q = 0.0, mean=mean(returnChains$mu), sd=sd(returnChains$mu), lower.tail = TRUE)
 
 # Pr(std > 2%)
-pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$mu), lower.tail = FALSE)
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=sd(returnChains$sigma), lower.tail = FALSE)
 
 
-mean(returns)
-sd(returns)
 
 
 

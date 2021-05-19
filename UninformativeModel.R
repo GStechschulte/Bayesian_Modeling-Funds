@@ -9,10 +9,12 @@ library(bayesplot)
 data <- NULL
 data <- cbind(data,
               getSymbols.yahoo("SPY", 
-                               from = "2017-01-01", 
+                               from = "2015-01-01", 
                                to = "2020-02-01",
                                periodicity = "monthly",
                                auto.assign=FALSE)[,6])
+
+tail(data)
 
 # Continuous returns
 spy.returns <- na.omit(diff(log(data)))
@@ -56,16 +58,16 @@ ggplot(sim_priors, aes(x = sigma_sim_prior)) +
 
 ## Model ## - tau (precision) = inverse of variance
 uninform_model <- "model{
-    
-    # Likelihood function for each observation in the returns vector 
-    for (i in 1:length(Y)) {
-         Y[i] ~ dnorm(mu, tau)
-    }
-    
-    # Prior(s) - expert intuition / knowledge
-    mu ~ dnorm(0.0, 0.001)
-    tau ~ dgamma(0.001, 0.001)
-    sigma <- 1/sqrt(tau)
+
+# Likelihood function for each observation in the returns vector 
+for (i in 1:length(Y)) {
+Y[i] ~ dnorm(mu, tau)
+}
+
+# Prior(s) - expert intuition / knowledge
+mu ~ dnorm(0.0, 0.001)
+tau ~ dgamma(0.001, 0.001)
+sigma <- 1/sqrt(tau)
 }"
 
 # --------------------------------
@@ -128,18 +130,10 @@ abline(v = quantile(y_sim, c(0.025, 0.975)), col = 'orange')
 ## Probabilities ##
 
 # Pr(mu > 0.5%)
-pnorm(q = 0.005, mean=mean(returnChains$mu), sd=sd(returnChains$mu), lower.tail = FALSE)
+pnorm(q = 0.005, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = FALSE)
 
 # Pr(mu < 0.0%)
-pnorm(q = 0.0, mean=mean(returnChains$mu), sd=sd(returnChains$mu), lower.tail = TRUE)
+pnorm(q = 0.0, mean=mean(returnChains$mu), sd=mean(returnChains$sigma), lower.tail = TRUE)
 
 # Pr(std > 2%)
-pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=sd(returnChains$sigma), lower.tail = FALSE)
-
-
-
-
-
-
-
-
+pnorm(q = 0.02, mean=mean(returnChains$sigma), sd=mean(returnChains$sigma), lower.tail = FALSE)

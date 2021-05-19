@@ -4,14 +4,15 @@
             - 1.) Mean monthly return, 2.) Monthly standard deviation
     - So why not use a smaller dataset? 
         - A smaller sample size produces greater uncertainty for the parameter(s) of interest
+    - Using Bayesian statistics allows you to model a prior distribution as the parameters of the model are treated as random variables and unknown. Where as in Frequentist statistics, parameters are treated as unknown and fixed
 - **Objective**:
-    - Insert domain knowledge into our prior probability of the model:
+    - Insert domain knowledge as a prior distribution of the model:
         - Use case domain knowledge:
-            - A skilled trader is aware of the tail risks of the Coronavirus pre-market crash. The trader is expecting volatile months ahead with negative monthly returns. 
+            - An investor is anticipating negative mean monthly returns and higher volatility for the months or year ahead. We want to incorporate this belief as a a distribution(s) to compute the uncertainty of mean monthly returns of 0.05% and volatility of 2% 
     - This will allow us to reduce the use of past data, and to put an emphasis on our prior probability
         - As we gain more evidence, our prior probability is "washed out" by the new instances 
             - After observing the new evidence, our belief is updated; which is called the posterior probability
             - __“Today's posterior is tomorrow's prior”__
-    - In Bayesian Inference, we have access to the parameters posterior distribution which will allow us to interpret point and interval estimates
-        - By incorporating forward looking priors complemented with having access to the posterior distribution, we can assess the probability of achieving a certain % mean monthly return and mean monthly volatility 
+    - In Bayesian Inference, we have access to the parameters posterior distribution which will allow us to use MCMC to sample thousands of data points from that distribution. From there, we use model diagnostics, interpret the output of the JAGS model, and compute probabilities for our parameters (mu and sigma)
+        - By incorporating forward looking priors complemented with having access to the posterior distribution, we can assess the probability of achieving a particular mean monthly return and mean monthly volatility 
 
